@@ -2,56 +2,60 @@ package main
 
 import (
 	"net/http"
-	"fmt"
-	"io/ioutil"
-	"strings"
+	//"io/ioutil"
+	//"strings"
+
 )
+type WebHandler = func(w http.ResponseWriter, r *http.Request)
+type MiddleWareFunction = func(w http.ResponseWriter, r *http.Request) bool
+type WebNode struct{
+	method string
+	pattern string
+	//Dynamic params?
+}
 
 type Route struct{
-	routeMap map[string] func(w http.ResponseWriter, r *http.Request)
+	routeMap map[WebNode] WebHandler
+	middlewareFunctions []MiddleWareFunction
+
 	fileServerLocation string
 }
 
-func (route *Route) addRoute(pattern string, handler func(w http.ResponseWriter, r *http.Request)){
+func (route *Route) addRoute(method string, pattern string, handler func(w http.ResponseWriter, r *http.Request)){
 	//No additional checks yet
 	if(route.routeMap == nil){
-		fmt.Println("Map is nil")
-		route.routeMap = make(map[string] func(w http.ResponseWriter, r *http.Request))
+		route.routeMap = make(map[WebNode] WebHandler)
 	}
-	route.routeMap[pattern] = handler
+	var webnode = WebNode{method: method, pattern: pattern}
+	route.routeMap[webnode] = handler
 }
 
-func (route *Route) addfileServer(directory string){
-	route.fileServerLocation = directory
+func (route *Route) handleMiddleWareFunction(w http.ResponseWriter, r *http.Request) bool{
+	for i:= 0 ; i < len(route.middlewareFunctions) ; i++{
+		var next = route.middlewareFunctions[i](w, r)
+
+		if(!next){
+			return false
+		}
+	}
+	return true
 }
 
+func (route *Route) addMiddleWareFunction(middleWareFunction func(w http.ResponseWriter, r *http.Request) bool){
+	route.middlewareFunctions = append(route.middlewareFunctions, middleWareFunction)
+}
 
 func (route *Route) serveRequests() http.HandlerFunc{
-	fmt.Println("Called ServeRequest")
-
-
-
-	var directoryToLookForFiles = "./" + route.fileServerLocation
-
-
-
-
-	//might be problematic
 	var handlerFunction = func (w http.ResponseWriter, r * http.Request){
-
-		fmt.Println(r.RequestURI)
-
-		//.js,.html
-		if(strings.ContainsAny(r.RequestURI,".")){
-			filedata, err := ioutil.ReadFile(directoryToLookForFiles + r.RequestURI)
-
-			if(err == nil){
-				w.Write(filedata)
-			}
-		}else if(route.routeMap[r.RequestURI] != nil) {
-			route.routeMap[r.RequestURI](w, r)
-		}else{
-			fmt.Println("route not found")
+		//go through middleware functions
+		if(!route.handleMiddleWareFunction(w, r)){
+			return
+		}
+		//go through route functions
+		var webnode = WebNode{method:r.Method, pattern:r.URL.Path}
+		if(route.routeMap[webnode] != nil){
+			route.routeMap[webnode](w, r)
+			return
 		}
 	}
 
