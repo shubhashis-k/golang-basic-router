@@ -2,23 +2,19 @@ package main
 
 import (
 	"net/http"
-	//"io/ioutil"
-	//"strings"
-
 )
 type WebHandler = func(w http.ResponseWriter, r *http.Request)
 type MiddleWareFunction = func(w http.ResponseWriter, r *http.Request) bool
 type WebNode struct{
 	method string
 	pattern string
+	staticFileLocation string
 	//Dynamic params?
 }
 
 type Route struct{
 	routeMap map[WebNode] WebHandler
 	middlewareFunctions []MiddleWareFunction
-
-	fileServerLocation string
 }
 
 func (route *Route) addRoute(method string, pattern string, handler func(w http.ResponseWriter, r *http.Request)){
@@ -45,6 +41,7 @@ func (route *Route) addMiddleWareFunction(middleWareFunction func(w http.Respons
 	route.middlewareFunctions = append(route.middlewareFunctions, middleWareFunction)
 }
 
+
 func (route *Route) serveRequests() http.HandlerFunc{
 	var handlerFunction = func (w http.ResponseWriter, r * http.Request){
 		//go through middleware functions
@@ -56,6 +53,8 @@ func (route *Route) serveRequests() http.HandlerFunc{
 		if(route.routeMap[webnode] != nil){
 			route.routeMap[webnode](w, r)
 			return
+		} else{
+			w.Write([]byte("404"))
 		}
 	}
 

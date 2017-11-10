@@ -1,15 +1,16 @@
 package main
 
 import (
+	//"net/http"
+	//"fmt"
+	//"strings"
+	//"net/http"
 	"net/http"
+	"awesomeProject/CustomFileServer"
 )
 
 func main() {
-	var router = Route{}
-
-	router.addRoute("GET", "/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Root Page"))
-	})
-
-	http.ListenAndServe(":8000", router.serveRequests())
+	fileServer := CustomFileServer.FileRoute{}
+	fileServer.AddFileNode("","StaticFiles","index.html")
+	http.ListenAndServe(":8080",fileServer.ServeRequests())
 }
